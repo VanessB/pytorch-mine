@@ -4,31 +4,31 @@ import torch
 
 class DVRSecondTerm(torch.autograd.Function):
     """
-    Класс, реализующий вычисление второго члена DVRLoss с несмещённым градиентом.
+    Implementation of the second term of DVRLoss, unbiased gradient.
     """
     
-    # Регуляризация знаменателя.
+    # Denominator regularization.
     EPS = 1e-6
     
     @staticmethod
     def forward(ctx, T_marginal: torch.tensor, moving_average: float,
                 precomputed_logmeanexp_T_marginal: torch.tensor=None) -> torch.tensor:
         """
-        Прямое прохождение.
+        Forward pass.
         
-        Параметры
-        ---------
+        Parameters
+        ----------
         T_marginal : torch.tensor
-             Значение статистики на батче, полученном из произведения маргинальных распределений.
+             Critic network value on a batch from the product of the marginal distributions.
         moving_average : float
-             Текущее значение движущегося среднего матожидания exp(T),
-             используемого для обратного распространения ошибки.
+             Current moving average of expectation of exp(T),
+             which is used for back propagation.
         precomputed_logmeanexp_T_marginal : torch.tensor, optional
-             Предвычисленное значение второго члена DVRLoss.
+             Precomputed value of the second term of DVRLoss (optional).
         """
         
-        # Потребуется для расчёта градиента.
-        # Для прямого прохода moving_average не требуется.
+        # Needed for the gradient computation.
+        # moving_average is not required for the forward pass.
         ctx.save_for_backward(T_marginal, moving_average)
         
         if precomputed_logmeanexp_T_marginal is None:
@@ -40,12 +40,12 @@ class DVRSecondTerm(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output: torch.tensor) -> torch.tensor:
         """
-        Обратное прохождение.
+        Backward pass.
         
-        Параметры
-        ---------
+        Parameters
+        ----------
         grad_output : torch.tensor
-            Градиент по выходному значению.
+            Output value gradient.
         """
 
         T_marginal, moving_average = ctx.saved_tensors
@@ -55,21 +55,21 @@ class DVRSecondTerm(torch.autograd.Function):
 
 class DVRLoss(torch.nn.Module):
     """
-    Класс, реализующий функцию потерь через расстояние Кульбака-Лейблера в представлении Донскера-Вардана.
+    Kullback-Leibler divergence in the Donsker-Varadhan form implementation.
     
-    Атрибуты
-    --------
+    Attributes
+    ----------
     biased : bool
-        Использоать ли смещённую оценку градиента?
+        Whether to use estimate with unbiased gradient.
     alpha : float
-        Коэффициент для расчёта движущегося среднего.
+        Exponential moving average coefficient.
     moving_average : float
-        Движущееся среднее матожидания exp(T).
+        Moving average of expectation of exp(T).
     
-    Методы
-    ------
+    Methods
+    -------
     forward
-        Прямое прохождение.
+        Forward pass.
     """
 
 
@@ -92,14 +92,14 @@ class DVRLoss(torch.nn.Module):
         
     def forward(self, T_joined: torch.tensor, T_marginal: torch.tensor) -> torch.tensor:
         """
-        Прямое прохождение.
+        Forward pass.
         
-        Параметры
-        ---------
+        Parameters
+        ----------
         T_joined : torch.tensor
-            Значение статистики на батче, полученном из совместного распределения.
+            Critic network value on a batch from the joined distribution.
         T_marginal : torch.tensor
-            Значение статистики на батче, полученном из произведения маргинальных распределений.
+            Critic network value on a batch from the product of the marginal distributions.
         """
         
         mean_T_joined = torch.mean(T_joined, dim=0)
@@ -118,12 +118,12 @@ class DVRLoss(torch.nn.Module):
             
     def update_moving_average(self, current_average: float):
         """
-        Обновление бегущего среднего.
+        Update the moving average.
         
-        Параметры
-        ---------
+        Parameters
+        ----------
         current_average : float
-            Среднее, полученное по очередному батчу.
+            Current batch average.
         """
         
         if self.moving_average is None:
